@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>City of Siler, Kentucky</title>
+  <meta name="description" content="Official website for the City of Siler, Kentucky. News, departments, services, meeting agendas, and contact information." />
+
+  <!--
+    City of Siler, KY — Single-file, fully functional static website
+    Features:
+      - Responsive layout
+      - Search across pages
+      - News posts (editable JSON)
+      - Events calendar list (editable JSON)
+      - Minutes/Agendas library (editable JSON)
+      - Contact form (client-side) with mailto fallback + copy-to-clipboard
+      - Report an Issue form (client-side) with localStorage tracking
+      - ADA: skip link, focus states, good contrast, reduced motion support
+      - No external dependencies
+
+    To deploy:
+      - Save as index.html
+      - Upload to any static host (GitHub Pages, Netlify, city server)
+      - OPTIONAL: connect forms to a backend (instructions in code)
+  -->
+
+  <style>
+    :root{
+      --bg: #0b1220;
+      --card:#0f1a33;
+      --muted:#a9b6d4;
+      --text:#eef2ff;
+      --brand:#3aa0ff;
+      --brand2:#6ee7ff;
+      --ok:#3ee98a;
+      --warn:#ffd166;
+      --bad:#ff5d7a;
+      --ring: rgba(58,160,255,.35);
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    @media (prefers-reduced-motion: reduce){
+      html{scroll-behavior:auto}
+      *{transition:none !important; animation:none !important}
+    }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(58,160,255,.18), transparent 55%),
+        radial-gradient(900px 700px at 80% 20%, rgba(110,231,255,.14), transparent 60%),
+        radial-gradient(900px 700px at 50% 90%, rgba(62,233,138,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+      line-height:1.45;
+    }
+
+    a{color:inherit}
+    .skip{
+      position:absolute; left:-999px; top:0;
+      background:var(--brand);
+      color:#06101f;
+      padding:10px 12px;
+      border-radius:12px;
+      z-index:9999;
+    }
+    .skip:focus{left:12px; top:12px; outline:none; box-shadow:0 0 0 6px var(--ring)}
+
+    .wrap{max-width:1180px; margin:0 auto; padding:18px}
+
+    header{
+      position:sticky; top:0; z-index:50;
+      backdrop-filter: blur(12px);
+      background: rgba(11,18,32,.72);
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:14px 0;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      min-width: 240px;
+    }
+
+    .seal{
+      width:42px; height:42px; border-radius:14px;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255,255,255,.20), transparent 40%),
+        linear-gradient(135deg, rgba(58,160,255,.95), rgba(110,231,255,.65));
+      box-shadow: 0 14px 30px rgba(0,0,0,.35);
+      display:grid; place-items:center;
+      border: 1px solid rgba(255,255,255,.18);
+      flex: 0 0 auto;
+    }
+    .seal svg{opacity:.95}
+
+    .brand h1{font-size:14px; margin:0; letter-spacing:.3px}
+    .brand p{margin:0; color:var(--muted); font-size:12px}
+
+    nav{
+      display:flex; align-items:center; gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .navbtn{
+      appearance:none; border:none;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 999px;
+      cursor:pointer;
+      font-weight:600;
+      font-size:13px;
+      border: 1px solid rgba(255,255,255,.10);
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .navbtn:hover{transform: translateY(-1px); background: rgba(255,255,255,.09)}
+    .navbtn[aria-current="page"]{
+      background: linear-gradient(135deg, rgba(58,160,255,.25), rgba(110,231,255,.12));
+      border-color: rgba(58,160,255,.55);
+      box-shadow: 0 0 0 6px var(--ring);
+    }
+
+    .navright{display:flex; gap:10px; align-items:center}
+
+    .search{
+      position:relative;
+      min-width: 260px;
+      max-width: 360px;
+      width: 32vw;
+    }
+
+    .search input{
+      width:100%;
+      padding: 11px 38px 11px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--text);
+      outline:none;
+    }
+    .search input:focus{box-shadow:0 0 0 6px var(--ring); border-color: rgba(58,160,255,.55)}
+    .search .icon{
+      position:absolute; right:12px; top:50%; transform: translateY(-50%);
+      opacity:.75;
+      pointer-events:none;
+    }
+
+    main{padding: 22px 0 64px}
+
+    .hero{
+      border-radius: calc(var(--radius) + 8px);
+      padding: 26px;
+      background:
+        radial-gradient(900px 600px at 20% 20%, rgba(58,160,255,.22), transparent 55%),
+        radial-gradient(700px 600px at 90% 10%, rgba(110,231,255,.14), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .hero-grid{display:grid; grid-template-columns: 1.4fr .9fr; gap:18px; align-items:stretch}
+
+    .kicker{
+      display:inline-flex; gap:10px; align-items:center;
+      font-size:12px; font-weight:700; letter-spacing:.25px;
+      color: rgba(238,242,255,.92);
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(58,160,255,.14);
+      border: 1px solid rgba(58,160,255,.25);
+      width: fit-content;
+    }
+
+    .hero h2{font-size:40px; margin:14px 0 10px; line-height:1.05}
+    .hero p{margin:0; color:var(--muted); max-width: 60ch; font-size:15px}
+
+    .cta-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+
+    .btn{
+      display:inline-flex; align-items:center; gap:10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      cursor:pointer;
+      font-weight:700;
+      text-decoration:none;
+      transition: transform .15s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:hover{transform: translateY(-1px); background: rgba(255,255,255,.09)}
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(58,160,255,.95), rgba(110,231,255,.55));
+      color:#06101f;
+      border-color: rgba(255,255,255,.18);
+    }
+    .btn.primary:hover{filter: brightness(1.03)}
+
+    .sidecard{
+      border-radius: 22px;
+      padding: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.10);
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      gap: 14px;
+    }
+
+    .statrow{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .stat{
+      border-radius: 18px;
+      padding: 12px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .stat .label{color:var(--muted); font-size:12px}
+    .stat .value{font-size:18px; font-weight:800; margin-top:4px}
+
+    .grid{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card{
+      grid-column: span 6;
+      border-radius: var(--radius);
+      padding: 16px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+
+    .card h3{margin:0 0 8px; font-size:16px}
+    .card p{margin:0; color:var(--muted); font-size:14px}
+
+    .card .meta{margin-top:10px; display:flex; gap:10px; flex-wrap:wrap}
+    .pill{
+      display:inline-flex; gap:8px; align-items:center;
+      font-size:12px; font-weight:700;
+      color: rgba(238,242,255,.92);
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+
+    .two{grid-column: span 8}
+    .one{grid-column: span 4}
+
+    .section-title{
+      margin: 28px 0 10px;
+      display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+    }
+    .section-title h2{margin:0; font-size:18px}
+    .section-title span{color:var(--muted); font-size:13px}
+
+    .list{display:grid; gap:10px}
+
+    .item{
+      border-radius: 16px;
+      padding: 14px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.08);
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+    }
+
+    .item strong{display:block; font-size:14px}
+    .item small{color:var(--muted)}
+
+    .item .actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
+
+    .mini{
+      padding: 9px 10px;
+      border-radius: 12px;
+      font-weight:800;
+      font-size:12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      cursor:pointer;
+    }
+    .mini:hover{background: rgba(255,255,255,.09)}
+
+    .tag{font-size:12px; font-weight:800; padding: 7px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,.10)}
+    .tag.ok{background: rgba(62,233,138,.10); border-color: rgba(62,233,138,.25)}
+    .tag.warn{background: rgba(255,209,102,.10); border-color: rgba(255,209,102,.25)}
+    .tag.bad{background: rgba(255,93,122,.10); border-color: rgba(255,93,122,.25)}
+
+    .page{display:none}
+    .page.active{display:block}
+
+    .form{
+      display:grid;
+      gap:12px;
+    }
+
+    label{display:grid; gap:6px; font-weight:700; font-size:13px}
+    input, textarea, select{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--text);
+      outline:none;
+    }
+    textarea{min-height: 130px; resize: vertical}
+    input:focus, textarea:focus, select:focus{box-shadow:0 0 0 6px var(--ring); border-color: rgba(58,160,255,.55)}
+
+    .note{color:var(--muted); font-size:13px}
+
+    footer{
+      border-top: 1px solid rgba(255,255,255,.08);
+      background: rgba(11,18,32,.65);
+    }
+
+    .footgrid{display:grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; padding: 20px 0}
+    .footgrid h4{margin:0 0 8px}
+    .footgrid p, .footgrid a{margin:0; color:var(--muted); font-size:13px; text-decoration:none}
+    .footgrid a:hover{color:var(--text)}
+
+    .copy{
+      padding: 14px 0 22px;
+      color: rgba(169,182,212,.9);
+      font-size:12px;
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+
+    .toast{
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      max-width: 420px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.65);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      display:none;
+      z-index: 999;
+    }
+    .toast.show{display:block}
+    .toast strong{display:block; margin-bottom:4px}
+    .toast p{margin:0; color:var(--muted); font-size:13px}
+
+    .kbd{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px; padding: 2px 7px; border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06)}
+
+    @media (max-width: 980px){
+      .hero-grid{grid-template-columns: 1fr;}
+      .search{min-width: 200px; width: 45vw}
+      .two{grid-column: span 12}
+      .one{grid-column: span 12}
+      .card{grid-column: span 12}
+      .footgrid{grid-template-columns: 1fr;}
+      .brand{min-width: unset}
+    }
+
+    @media (max-width: 520px){
+      .hero h2{font-size:32px}
+      .search{display:none}
+      nav{gap:6px}
+      .navbtn{padding: 9px 10px}
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header>
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand" aria-label="City of Siler, Kentucky">
+          <div class="seal" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2l2.2 6.2L21 9l-5 3.8L17.8 20 12 16.4 6.2 20 8 12.8 3 9l6.8-.8L12 2z" fill="rgba(6,16,31,.9)"/>
+            </svg>
+          </div>
+          <div>
+            <h1>City of Siler, Kentucky</h1>
+            <p>News • Services • Meetings • Contact</p>
+          </div>
+        </div>
+
+        <div class="navright">
+          <div class="search" aria-label="Site search">
+            <input id="search" type="search" placeholder="Search (try: water, permits, minutes)…" autocomplete="off" />
+            <span class="icon" aria-hidden="true">🔎</span>
+          </div>
+
+          <nav aria-label="Primary">
+            <button class="navbtn" data-route="home" aria-current="page">Home</button>
+            <button class="navbtn" data-route="services">Services</button>
+            <button class="navbtn" data-route="departments">Departments</button>
+            <button class="navbtn" data-route="government">Government</button>
+            <button class="navbtn" data-route="documents">Documents</button>
+            <button class="navbtn" data-route="contact">Contact</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+
+    <!-- HOME -->
+    <section class="page active" id="page-home" data-title="Home">
+      <div class="hero">
+        <div class="hero-grid">
+          <div>
+            <div class="kicker">🏛️ Official City Website</div>
+            <h2>Welcome to Siler.</h2>
+            <p>
+              Find city services, meeting information, public notices, and the latest updates.
+              This site is designed to be fast, accessible, and easy to update.
+            </p>
+            <div class="cta-row" style="margin-top:18px">
+              <a class="btn primary" href="#" data-goto="services">Explore Services</a>
+              <a class="btn" href="#" data-goto="documents">Agendas & Minutes</a>
+              <a class="btn" href="#" data-goto="contact">Report an Issue</a>
+            </div>
+            <p class="note" style="margin-top:14px">
+              Tip: use the search bar or press <span class="kbd">/</span> to search.
+            </p>
+          </div>
+
+          <aside class="sidecard" aria-label="Quick facts">
+            <div>
+              <h3 style="margin:0 0 6px">Quick Links</h3>
+              <div class="list" style="margin-top:10px">
+                <button class="mini" data-goto="services" style="text-align:left">💧 Water & Sewer</button>
+                <button class="mini" data-goto="services" style="text-align:left" data-filter="permits">🧾 Permits & Forms</button>
+                <button class="mini" data-goto="government" style="text-align:left">🗳️ Mayor & Council</button>
+                <button class="mini" data-goto="documents" style="text-align:left">📄 Meeting Library</button>
+              </div>
+            </div>
+
+            <div class="statrow" aria-label="City status">
+              <div class="stat">
+                <div class="label">Today</div>
+                <div class="value" id="today">—</div>
+              </div>
+              <div class="stat">
+                <div class="label">Next Meeting</div>
+                <div class="value" id="nextMeeting">—</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div class="grid" aria-label="Highlights">
+        <div class="card two">
+          <div class="section-title">
+            <h2>Latest News</h2>
+            <span id="newsCount">—</span>
+          </div>
+          <div id="newsList" class="list" aria-live="polite"></div>
+        </div>
+
+        <div class="card one">
+          <div class="section-title">
+            <h2>Upcoming Events</h2>
+            <span>What’s next</span>
+          </div>
+          <div id="eventsList" class="list" aria-live="polite"></div>
+        </div>
+
+        <div class="card">
+          <h3>Emergency & After-Hours</h3>
+          <p>
+            If you have an urgent public safety emergency, call <strong>911</strong>.
+            For non-emergency issues, use the Contact page.
+          </p>
+          <div class="meta">
+            <span class="pill">🚓 Police: Non-Emergency</span>
+            <span class="pill">🚒 Fire / Rescue</span>
+            <span class="pill">⚡ Outage Reporting</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Public Notices</h3>
+          <p>
+            Public notices are posted here and in the Documents section.
+            For meeting agendas, see the Meeting Library.
+          </p>
+          <div class="meta">
+            <span class="tag warn">Notice Board</span>
+            <span class="pill">📌 Transparency</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SERVICES -->
+    <section class="page" id="page-services" data-title="Services">
+      <div class="hero" style="padding:22px">
+        <div class="kicker">🧰 City Services</div>
+        <h2 style="margin-top:12px">Services & Common Requests</h2>
+        <p>
+          Use this page for the most common city tasks. You can update service links in the code.
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Utility Billing</h3>
+          <p>Pay bills, start/stop service, and report water issues.</p>
+          <div class="meta">
+            <span class="pill">💧 Water</span>
+            <span class="pill">🚽 Sewer</span>
+            <button class="mini" data-goto="contact" data-prefill="utility">Contact Utility Clerk</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Permits & Forms</h3>
+          <p>Building permits, business forms, and right-of-way requests.</p>
+          <div class="meta">
+            <span class="pill">🧾 Permits</span>
+            <span class="pill">🏗️ Building</span>
+            <button class="mini" data-goto="documents" data-docfilter="permits">View Forms</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Trash & Pickup</h3>
+          <p>Pickup schedules and bulky item rules (edit this for your local provider).</p>
+          <div class="meta">
+            <span class="pill">🗑️ Waste</span>
+            <span class="pill">📅 Schedule</span>
+            <button class="mini" data-goto="contact" data-prefill="trash">Ask a Question</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Report a Problem</h3>
+          <p>Potholes, streetlights, drainage, signs, and more.</p>
+          <div class="meta">
+            <span class="pill">🛣️ Roads</span>
+            <span class="pill">💡 Lights</span>
+            <span class="pill">🌧️ Drainage</span>
+            <button class="mini" data-goto="contact" data-prefill="issue">Report Now</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEPARTMENTS -->
+    <section class="page" id="page-departments" data-title="Departments">
+      <div class="hero" style="padding:22px">
+        <div class="kicker">🏢 Departments</div>
+        <h2 style="margin-top:12px">Who Does What</h2>
+        <p>Quick contacts for city operations. Replace placeholders with real names and numbers.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>City Hall</h3>
+          <p>General questions, records requests, and city services.</p>
+          <div class="meta">
+            <span class="pill">📍 Address: <span data-city="address">(set in settings)</span></span>
+            <span class="pill">☎️ Phone: <span data-city="phone">(set in settings)</span></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Public Works</h3>
+          <p>Roads, drainage, signage, right-of-way maintenance.</p>
+          <div class="meta">
+            <button class="mini" data-goto="contact" data-prefill="publicworks">Contact Public Works</button>
+            <span class="tag ok">Service</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Utilities</h3>
+          <p>Water/sewer operations, billing, and service requests.</p>
+          <div class="meta">
+            <button class="mini" data-goto="contact" data-prefill="utility">Contact Utilities</button>
+            <span class="tag ok">Billing</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Code Enforcement</h3>
+          <p>Property maintenance, nuisance complaints, and compliance.</p>
+          <div class="meta">
+            <button class="mini" data-goto="contact" data-prefill="code">Report a Concern</button>
+            <span class="tag warn">Policy</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GOVERNMENT -->
+    <section class="page" id="page-government" data-title="Government">
+      <div class="hero" style="padding:22px">
+        <div class="kicker">🗳️ City Government</div>
+        <h2 style="margin-top:12px">Mayor, Council, Meetings</h2>
+        <p>
+          Meeting dates and elected officials can be updated in the settings section of this file.
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card two">
+          <div class="section-title">
+            <h2>Meeting Schedule</h2>
+            <span>Auto-sorted</span>
+          </div>
+          <div id="meetingsList" class="list"></div>
+        </div>
+
+        <div class="card one">
+          <div class="section-title">
+            <h2>Officials</h2>
+            <span>Directory</span>
+          </div>
+          <div id="officialsList" class="list"></div>
+        </div>
+
+        <div class="card">
+          <h3>Open Records Requests</h3>
+          <p>
+            To request public records, use the Contact form and select “Open Records Request”.
+            The city will respond according to Kentucky law.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Public Comment</h3>
+          <p>
+            You may submit written comments for agenda items through the Contact page.
+            Please include your name and the meeting date.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section class="page" id="page-documents" data-title="Documents">
+      <div class="hero" style="padding:22px">
+        <div class="kicker">📄 Documents</div>
+        <h2 style="margin-top:12px">Agendas, Minutes, Forms</h2>
+        <p>
+          This library is powered by editable data inside this file.
+          If you host PDFs, replace the URLs.
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card two">
+          <div class="section-title">
+            <h2>Meeting Library</h2>
+            <span id="docsCount">—</span>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px">
+            <select id="docType">
+              <option value="">All Types</option>
+              <option value="agenda">Agendas</option>
+              <option value="minutes">Minutes</option>
+              <option value="form">Forms</option>
+              <option value="notice">Notices</option>
+            </select>
+            <input id="docQuery" placeholder="Filter documents…" />
+            <button class="mini" id="clearDocFilters">Clear</button>
+          </div>
+          <div id="docsList" class="list"></div>
+        </div>
+
+        <div class="card one">
+          <h3>Helpful Downloads</h3>
+          <p>Common forms and city information.</p>
+          <div class="meta">
+            <span class="pill">🧾 Permits</span>
+            <span class="pill">💧 Utility</span>
+          </div>
+          <div class="list" style="margin-top:12px">
+            <button class="mini" id="downloadAllDocs">Copy Document Links</button>
+            <button class="mini" data-goto="contact" data-prefill="records">Open Records Request</button>
+          </div>
+          <p class="note" style="margin-top:10px">
+            Tip: if you don’t have PDFs yet, keep placeholders and update later.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="page" id="page-contact" data-title="Contact">
+      <div class="hero" style="padding:22px">
+        <div class="kicker">✉️ Contact</div>
+        <h2 style="margin-top:12px">Send a Message or Report an Issue</h2>
+        <p>
+          This form works without a server using email + copy-to-clipboard.
+          For a truly “submit-to-database” setup, connect a backend endpoint.
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card two">
+          <h3>Contact Form</h3>
+          <form class="form" id="contactForm">
+            <label>
+              Topic
+              <select id="topic" required>
+                <option value="">Select…</option>
+                <option>General Question</option>
+                <option>Report an Issue</option>
+                <option>Utilities / Billing</option>
+                <option>Public Works</option>
+                <option>Open Records Request</option>
+                <option>Business / Permits</option>
+                <option>Meeting / Public Comment</option>
+              </select>
+            </label>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+              <label>
+                Your Name
+                <input id="name" autocomplete="name" required />
+              </label>
+              <label>
+                Email
+                <input id="email" type="email" autocomplete="email" required />
+              </label>
+            </div>
+
+            <label>
+              Phone (optional)
+              <input id="phone" autocomplete="tel" />
+            </label>
+
+            <label>
+              Message
+              <textarea id="message" required placeholder="Include address or cross streets if relevant."></textarea>
+            </label>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap">
+              <button class="btn primary" type="submit">Send</button>
+              <button class="btn" type="button" id="copyMessage">Copy Message</button>
+              <a class="btn" id="mailtoLink" href="#">Open in Email App</a>
+            </div>
+
+            <p class="note">
+              When you click <strong>Send</strong>, your message is saved locally for your records.
+              City staff can also connect this form to a backend.
+            </p>
+          </form>
+        </div>
+
+        <div class="card one">
+          <h3>City Hall</h3>
+          <p><strong>Address:</strong> <span data-city="address">(set in settings)</span></p>
+          <p><strong>Phone:</strong> <span data-city="phone">(set in settings)</span></p>
+          <p><strong>Email:</strong> <span data-city="email">(set in settings)</span></p>
+          <div class="meta">
+            <span class="pill">🕘 Hours: <span data-city="hours">(set in settings)</span></span>
+          </div>
+
+          <div style="margin-top:14px">
+            <h4 style="margin:0 0 6px">Your Submissions</h4>
+            <p class="note" style="margin:0 0 10px">Saved in this browser only.</p>
+            <div class="list" id="savedSubmissions"></div>
+            <button class="mini" id="clearSubmissions" style="margin-top:10px">Clear Saved</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footgrid">
+        <div>
+          <h4>City of Siler, Kentucky</h4>
+          <p>Official municipal website.</p>
+          <p style="margin-top:10px"><span class="pill">🌿 Small town, strong community</span></p>
+        </div>
+        <div>
+          <h4>Quick Pages</h4>
+          <p><a href="#" data-goto="services">Services</a></p>
+          <p><a href="#" data-goto="government">Government</a></p>
+          <p><a href="#" data-goto="documents">Documents</a></p>
+          <p><a href="#" data-goto="contact">Contact</a></p>
+        </div>
+        <div>
+          <h4>Accessibility</h4>
+          <p>This site supports keyboard navigation and reduced motion.</p>
+          <p style="margin-top:10px">Need help? Use the Contact page.</p>
+        </div>
+      </div>
+
+      <div class="copy">
+        <span>© <span id="year"></span> City of Siler, KY</span>
+        <span>Built as a fast, static site (no tracking).</span>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /**********************
+     * SETTINGS (EDIT ME)
+     **********************/
+    const CITY = {
+      name: "City of Siler, Kentucky",
+      address: "Siler, KY (update this address)",
+      phone: "(000) 000-0000",
+      email: "cityofsiler@example.com",
+      hours: "Mon–Fri, 8:00 AM – 4:00 PM",
+      mailtoTo: "cityofsiler@example.com",
+    };
+
+    // News posts (edit/add)
+    const NEWS = [
+      {
+        id: "water-update-1",
+        title: "Water system maintenance scheduled",
+        date: "2026-02-12",
+        summary: "Routine maintenance may cause brief pressure changes in some areas.",
+        tags: ["Utilities", "Notice"],
+      },
+      {
+        id: "council-meeting-feb",
+        title: "City Council meeting agenda posted",
+        date: "2026-02-14",
+        summary: "Agenda and supporting documents are available in the Documents section.",
+        tags: ["Government"],
+      },
+      {
+        id: "road-repairs",
+        title: "Road patching begins next week",
+        date: "2026-02-17",
+        summary: "Please use caution around work crews and temporary signage.",
+        tags: ["Public Works"],
+      },
+    ];
+
+    // Events (edit/add)
+    const EVENTS = [
+      {
+        title: "City Council Meeting",
+        date: "2026-02-20",
+        time: "6:00 PM",
+        location: "City Hall",
+        type: "Meeting",
+      },
+      {
+        title: "Planning Workshop",
+        date: "2026-03-05",
+        time: "5:30 PM",
+        location: "Community Room",
+        type: "Workshop",
+      },
+      {
+        title: "Spring Cleanup Day",
+        date: "2026-03-23",
+        time: "9:00 AM",
+        location: "Various Sites",
+        type: "Community",
+      },
+    ];
+
+    // Officials (edit/add)
+    const OFFICIALS = [
+      { role: "Mayor", name: "(Add Name)", email: "mayor@example.com" },
+      { role: "Council Member", name: "(Add Name)", email: "council1@example.com" },
+      { role: "Council Member", name: "(Add Name)", email: "council2@example.com" },
+      { role: "City Clerk", name: "(Add Name)", email: "clerk@example.com" },
+    ];
+
+    // Meetings list (edit/add)
+    const MEETINGS = [
+      {
+        title: "Regular Council Meeting",
+        date: "2026-02-20",
+        time: "6:00 PM",
+        location: "City Hall",
+        notes: "Public welcome. Agenda posted 72 hours prior.",
+      },
+      {
+        title: "Regular Council Meeting",
+        date: "2026-03-20",
+        time: "6:00 PM",
+        location: "City Hall",
+        notes: "Public welcome.",
+      },
+    ];
+
+    // Documents library (edit/add). Replace url with real PDF links.
+    const DOCUMENTS = [
+      {
+        title: "Council Agenda — February 2026",
+        date: "2026-02-14",
+        type: "agenda",
+        url: "#",
+      },
+      {
+        title: "Council Minutes — January 2026",
+        date: "2026-01-18",
+        type: "minutes",
+        url: "#",
+      },
+      {
+        title: "Open Records Request Form",
+        date: "2026-01-01",
+        type: "form",
+        url: "#",
+      },
+      {
+        title: "Building Permit Application",
+        date: "2026-01-01",
+        type: "form",
+        url: "#",
+      },
+      {
+        title: "Public Notice Template",
+        date: "2026-02-01",
+        type: "notice",
+        url: "#",
+      },
+    ];
+
+
+    /**********************
+     * APP
+     **********************/
+
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+    const toastEl = $("#toast");
+    let toastTimer = null;
+
+    function toast(title, msg){
+      toastEl.innerHTML = `<strong>${escapeHtml(title)}</strong><p>${escapeHtml(msg)}</p>`;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 3400);
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function fmtDate(iso){
+      const d = new Date(iso + "T12:00:00");
+      return d.toLocaleDateString(undefined, {year:"numeric", month:"short", day:"numeric"});
+    }
+
+    function sortByDateDesc(a,b){
+      return new Date(b.date) - new Date(a.date);
+    }
+
+    function sortByDateAsc(a,b){
+      return new Date(a.date) - new Date(b.date);
+    }
+
+    function routeTo(route, push=true){
+      const pages = $$(".page");
+      pages.forEach(p => p.classList.remove("active"));
+
+      const page = $("#page-" + route);
+      if(!page){
+        route = "home";
+      }
+
+      $("#page-" + route).classList.add("active");
+
+      // nav active
+      $$(".navbtn").forEach(b => {
+        const is = b.dataset.route === route;
+        b.setAttribute("aria-current", is ? "page" : "false");
+      });
+
+      // title
+      const t = $("#page-" + route).dataset.title || "";
+      document.title = `${t} — ${CITY.name}`;
+
+      if(push){
+        history.pushState({route}, "", `#${route}`);
+      }
+
+      window.scrollTo({top:0, behavior:"smooth"});
+    }
+
+    function bootRouting(){
+      const initial = (location.hash || "#home").replace("#", "");
+      routeTo(initial, false);
+
+      window.addEventListener("popstate", (e) => {
+        const r = (location.hash || "#home").replace("#", "");
+        routeTo(r, false);
+      });
+
+      $$(".navbtn").forEach(btn => {
+        btn.addEventListener("click", () => routeTo(btn.dataset.route));
+      });
+
+      $$('[data-goto]').forEach(el => {
+        el.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const r = el.dataset.goto;
+          routeTo(r);
+
+          // optional helpers
+          if(el.dataset.prefill){
+            prefillTopic(el.dataset.prefill);
+          }
+          if(el.dataset.docfilter){
+            // set doc type to form for permits
+            setTimeout(() => {
+              $("#docType").value = "form";
+              $("#docQuery").value = "permit";
+              renderDocuments();
+            }, 80);
+          }
+        });
+      });
+    }
+
+    function prefillTopic(kind){
+      // Only applies on contact page
+      setTimeout(() => {
+        const topic = $("#topic");
+        if(!topic) return;
+        const map = {
+          issue: "Report an Issue",
+          publicworks: "Public Works",
+          utility: "Utilities / Billing",
+          trash: "General Question",
+          permits: "Business / Permits",
+          records: "Open Records Request",
+          code: "General Question",
+        };
+        topic.value = map[kind] || "General Question";
+      }, 120);
+    }
+
+    function renderCityFields(){
+      $$('[data-city="address"]').forEach(el => el.textContent = CITY.address);
+      $$('[data-city="phone"]').forEach(el => el.textContent = CITY.phone);
+      $$('[data-city="email"]').forEach(el => el.textContent = CITY.email);
+      $$('[data-city="hours"]').forEach(el => el.textContent = CITY.hours);
+      $("#year").textContent = new Date().getFullYear();
+      $("#today").textContent = new Date().toLocaleDateString(undefined, {weekday:"short", month:"short", day:"numeric"});
+    }
+
+    function nextMeetingLabel(){
+      const now = new Date();
+      const upcoming = MEETINGS
+        .map(m => ({...m, _d: new Date(m.date + "T" + (m.time || "18:00") )}))
+        .filter(m => m._d >= now)
+        .sort((a,b) => a._d - b._d)[0];
+      if(!upcoming) return "None";
+      return fmtDate(upcoming.date);
+    }
+
+    function renderNews(){
+      const list = $("#newsList");
+      const sorted = [...NEWS].sort(sortByDateDesc).slice(0, 6);
+      $("#newsCount").textContent = `${sorted.length} posted`;
+      list.innerHTML = sorted.map(n => {
+        const tagPills = (n.tags || []).slice(0,3).map(t => `<span class="pill">${escapeHtml(t)}</span>`).join("");
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(n.title)}</strong>
+              <small>${fmtDate(n.date)} • ${escapeHtml(n.summary)}</small>
+              <div class="meta" style="margin-top:10px">${tagPills}</div>
+            </div>
+            <div class="actions">
+              <span class="tag warn">News</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderEvents(){
+      const list = $("#eventsList");
+      const sorted = [...EVENTS].sort(sortByDateAsc).slice(0, 5);
+      list.innerHTML = sorted.map(e => {
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(e.title)}</strong>
+              <small>${fmtDate(e.date)} • ${escapeHtml(e.time)} • ${escapeHtml(e.location)}</small>
+            </div>
+            <div class="actions">
+              <span class="tag ok">${escapeHtml(e.type || "Event")}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderMeetings(){
+      const list = $("#meetingsList");
+      const sorted = [...MEETINGS].sort(sortByDateAsc);
+      list.innerHTML = sorted.map(m => {
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(m.title)}</strong>
+              <small>${fmtDate(m.date)} • ${escapeHtml(m.time)} • ${escapeHtml(m.location)}</small>
+              <div class="note" style="margin-top:6px">${escapeHtml(m.notes || "")}</div>
+            </div>
+            <div class="actions">
+              <span class="tag ok">Meeting</span>
+              <button class="mini" data-goto="documents" data-open-docs="true">View docs</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // bind buttons
+      $$('[data-open-docs="true"]').forEach(b => {
+        b.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          routeTo("documents");
+        });
+      });
+
+      $("#nextMeeting").textContent = nextMeetingLabel();
+    }
+
+    function renderOfficials(){
+      const list = $("#officialsList");
+      list.innerHTML = OFFICIALS.map(o => {
+        const email = o.email || CITY.email;
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(o.role)}</strong>
+              <small>${escapeHtml(o.name)}</small>
+              <div class="note" style="margin-top:6px">${escapeHtml(email)}</div>
+            </div>
+            <div class="actions">
+              <button class="mini" data-email="${escapeHtml(email)}">Email</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      $$('[data-email]').forEach(btn => {
+        btn.addEventListener("click", () => {
+          const to = btn.dataset.email;
+          window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent("Message from City Website")}`;
+        });
+      });
+    }
+
+    function docTypeLabel(type){
+      return ({agenda:"Agenda", minutes:"Minutes", form:"Form", notice:"Notice"}[type] || "Document");
+    }
+
+    function renderDocuments(){
+      const list = $("#docsList");
+      const type = $("#docType").value.trim();
+      const q = $("#docQuery").value.trim().toLowerCase();
+
+      const filtered = [...DOCUMENTS]
+        .filter(d => !type || d.type === type)
+        .filter(d => !q || (d.title + " " + d.type).toLowerCase().includes(q))
+        .sort(sortByDateDesc);
+
+      $("#docsCount").textContent = `${filtered.length} shown`;
+
+      list.innerHTML = filtered.map(d => {
+        const label = docTypeLabel(d.type);
+        const tagClass = d.type === "notice" ? "warn" : (d.type === "form" ? "ok" : "ok");
+        const href = d.url && d.url !== "#" ? d.url : null;
+
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(d.title)}</strong>
+              <small>${fmtDate(d.date)} • ${label}</small>
+            </div>
+            <div class="actions">
+              <span class="tag ${tagClass}">${label}</span>
+              ${href ? `<a class="mini" href="${escapeHtml(href)}" target="_blank" rel="noopener">Open</a>` : `<button class="mini" data-placeholder="true">Not uploaded</button>`}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      $$('[data-placeholder="true"]').forEach(b => {
+        b.addEventListener("click", () => toast("Not uploaded yet", "Replace the document URL in the code to enable downloads."));
+      });
+    }
+
+    function wireDocumentFilters(){
+      $("#docType").addEventListener("change", renderDocuments);
+      $("#docQuery").addEventListener("input", renderDocuments);
+      $("#clearDocFilters").addEventListener("click", () => {
+        $("#docType").value = "";
+        $("#docQuery").value = "";
+        renderDocuments();
+      });
+
+      $("#downloadAllDocs").addEventListener("click", async () => {
+        const links = DOCUMENTS
+          .filter(d => d.url && d.url !== "#")
+          .map(d => `${d.title} — ${d.url}`)
+          .join("\n");
+        if(!links){
+          toast("No links", "Add PDF URLs in the DOCUMENTS array.");
+          return;
+        }
+        await navigator.clipboard.writeText(links);
+        toast("Copied", "Document links copied to clipboard.");
+      });
+    }
+
+    function buildMailto(subject, body){
+      const to = CITY.mailtoTo || CITY.email;
+      return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+
+    function saveSubmission(obj){
+      const key = "siler_submissions_v1";
+      const existing = JSON.parse(localStorage.getItem(key) || "[]");
+      existing.unshift(obj);
+      localStorage.setItem(key, JSON.stringify(existing.slice(0, 25)));
+    }
+
+    function loadSubmissions(){
+      const key = "siler_submissions_v1";
+      return JSON.parse(localStorage.getItem(key) || "[]");
+    }
+
+    function renderSubmissions(){
+      const list = $("#savedSubmissions");
+      const subs = loadSubmissions();
+      if(!subs.length){
+        list.innerHTML = `<div class="note">No saved submissions yet.</div>`;
+        return;
+      }
+
+      list.innerHTML = subs.slice(0, 8).map(s => {
+        return `
+          <div class="item">
+            <div>
+              <strong>${escapeHtml(s.topic)}</strong>
+              <small>${escapeHtml(s.name)} • ${fmtDate(s.dateISO.slice(0,10))}</small>
+            </div>
+            <div class="actions">
+              <button class="mini" data-copy-id="${escapeHtml(s.id)}">Copy</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      $$('[data-copy-id]').forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.copyId;
+          const s = loadSubmissions().find(x => x.id === id);
+          if(!s) return;
+          await navigator.clipboard.writeText(s.fullText);
+          toast("Copied", "Submission copied to clipboard.");
+        });
+      });
+    }
+
+    function wireContactForm(){
+      const form = $("#contactForm");
+      const mailtoLink = $("#mailtoLink");
+
+      function buildBody(){
+        const topic = $("#topic").value;
+        const name = $("#name").value;
+        const email = $("#email").value;
+        const phone = $("#phone").value;
+        const message = $("#message").value;
+
+        const lines = [
+          `Topic: ${topic}`,
+          `Name: ${name}`,
+          `Email: ${email}`,
+          phone ? `Phone: ${phone}` : null,
+          "",
+          message,
+          "",
+          `— Sent from ${CITY.name} website`,
+        ].filter(Boolean);
+
+        return lines.join("\n");
+      }
+
+      function refreshMailto(){
+        const topic = $("#topic").value || "City Message";
+        const subject = `${topic} — ${CITY.name}`;
+        const body = buildBody();
+        mailtoLink.href = buildMailto(subject, body);
+      }
+
+      $$("#topic, #name, #email, #phone, #message").forEach(el => {
+        el.addEventListener("input", refreshMailto);
+        el.addEventListener("change", refreshMailto);
+      });
+
+      $("#copyMessage").addEventListener("click", async () => {
+        refreshMailto();
+        const body = buildBody();
+        await navigator.clipboard.writeText(body);
+        toast("Copied", "Message copied. You can paste it into an email.");
+      });
+
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+
+        const topic = $("#topic").value;
+        const name = $("#name").value.trim();
+        const email = $("#email").value.trim();
+        const message = $("#message").value.trim();
+
+        if(!topic || !name || !email || !message){
+          toast("Missing info", "Please complete the required fields.");
+          return;
+        }
+
+        const body = buildBody();
+        const subject = `${topic} — ${CITY.name}`;
+        const id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+
+        saveSubmission({
+          id,
+          topic,
+          name,
+          email,
+          dateISO: new Date().toISOString(),
+          fullText: body,
+        });
+
+        renderSubmissions();
+        refreshMailto();
+
+        toast("Saved", "Your message was saved. Opening your email app…");
+        window.location.href = buildMailto(subject, body);
+      });
+
+      $("#clearSubmissions").addEventListener("click", () => {
+        localStorage.removeItem("siler_submissions_v1");
+        renderSubmissions();
+        toast("Cleared", "Saved submissions removed from this browser.");
+      });
+
+      refreshMailto();
+    }
+
+    function wireSearch(){
+      const input = $("#search");
+
+      // Press / to focus search
+      window.addEventListener("keydown", (e) => {
+        if(e.key === "/" && document.activeElement !== input){
+          e.preventDefault();
+          input.focus();
+        }
+      });
+
+      input.addEventListener("input", () => {
+        const q = input.value.trim().toLowerCase();
+        if(!q){
+          // clear highlights
+          return;
+        }
+
+        const hay = [
+          {route:"home", text: NEWS.map(n => `${n.title} ${n.summary} ${(n.tags||[]).join(" ")}`).join(" ")},
+          {route:"documents", text: DOCUMENTS.map(d => `${d.title} ${d.type}`).join(" ")},
+          {route:"services", text: "utilities billing water sewer permits forms trash pickup report pothole drainage"},
+          {route:"departments", text: "city hall public works utilities code enforcement"},
+          {route:"government", text: OFFICIALS.map(o => `${o.role} ${o.name}`).join(" ") + " " + MEETINGS.map(m => m.title).join(" ")},
+          {route:"contact", text: "contact report issue open records request public comment"},
+        ];
+
+        const hits = hay
+          .map(h => ({...h, score: scoreMatch(q, h.text)}))
+          .filter(h => h.score > 0)
+          .sort((a,b) => b.score - a.score);
+
+        if(hits[0]){
+          // Soft suggestion (don’t auto-navigate)
+          toast("Search", `Top match: ${hits[0].route}. Press Enter to open.`);
+        }
+      });
+
+      input.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){
+          const q = input.value.trim().toLowerCase();
+          if(!q) return;
+
+          const hay = [
+            {route:"documents", text: DOCUMENTS.map(d => `${d.title} ${d.type}`).join(" ")},
+            {route:"home", text: NEWS.map(n => `${n.title} ${n.summary} ${(n.tags||[]).join(" ")}`).join(" ")},
+            {route:"services", text: "utilities billing water sewer permits forms trash pickup report pothole drainage"},
+            {route:"government", text: OFFICIALS.map(o => `${o.role} ${o.name}`).join(" ") + " " + MEETINGS.map(m => m.title).join(" ")},
+            {route:"contact", text: "contact report issue open records request public comment"},
+          ];
+
+          const best = hay
+            .map(h => ({...h, score: scoreMatch(q, h.text)}))
+            .sort((a,b) => b.score - a.score)[0];
+
+          if(best && best.score > 0){
+            routeTo(best.route);
+            // if docs, prefill doc search
+            if(best.route === "documents"){
+              setTimeout(() => {
+                $("#docQuery").value = q;
+                renderDocuments();
+              }, 80);
+            }
+          } else {
+            toast("No results", "Try different keywords.");
+          }
+        }
+      });
+    }
+
+    function scoreMatch(q, text){
+      // Very small fuzzy-ish scoring
+      const t = text.toLowerCase();
+      if(t.includes(q)) return 10;
+      const words = q.split(/\s+/).filter(Boolean);
+      let score = 0;
+      for(const w of words){
+        if(t.includes(w)) score += 3;
+      }
+      return score;
+    }
+
+    function init(){
+      renderCityFields();
+      renderNews();
+      renderEvents();
+      renderMeetings();
+      renderOfficials();
+      renderDocuments();
+      wireDocumentFilters();
+      wireContactForm();
+      wireSearch();
+      bootRouting();
+      renderSubmissions();
+    }
+
+    init();
+  </script>
+</body>
+</html>
